@@ -30,9 +30,17 @@ const userSchema = new mongoose.Schema(
     notificationsEnabled: { type: Boolean, default: true },
     pushTokens: [{ type: String }],
     refreshTokens: { type: [String], select: false, default: [] },
+    deletedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true }
 );
+
+// Hide soft-deleted users from default find()s
+userSchema.pre(/^find/, function () {
+  if (!this.getOptions().withDeleted) {
+    this.where({ deletedAt: null });
+  }
+});
 
 userSchema.index({ name: 'text', email: 'text' });
 

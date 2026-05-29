@@ -1,9 +1,11 @@
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
+const User = require('../models/User');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 const { ensureMembership, persistMessage } = require('../services/message.service');
 const { emitToChat, emitToUser } = require('../sockets/emitters');
+const { pushToUsers } = require('../services/push.service');
 
 exports.listMessages = asyncHandler(async (req, res) => {
   const chatId = req.params.chatId;
@@ -36,6 +38,41 @@ exports.send = asyncHandler(async (req, res) => {
   // Exclude sender — they get the canonical message via this HTTP response.
   emitToChat(req.body.chatId, 'message:new', { message }, req.userId);
   res.status(201).json({ message });
+
+  // Push to chat participants who are offline (best-effort, async).
+  setImmediate(async () => {
+    try {
+      const chat = await Chat.findById(req.body.chatId).populate('participants', '_id isOnline');
+      if (!chat) return;
+      const offlineRecipients = chat.participants
+        .filter((p) => p._id.toString() !== req.userId && !p.isOnline)
+        .map((p) => p._id);
+      if (!offlineRecipients.length) return;
+
+      const senderName =
+        (message.sender && message.sender.name) ||
+        (await User.findById(req.userId).select('name'))?.name ||
+        'Someone';
+      const preview =
+        message.attachments?.length
+          ? message.attachments[0].type === 'image'
+            ? '📷 Photo'
+            : message.attachments[0].type === 'video'
+            ? '🎥 Video'
+            : message.attachments[0].type === 'audio'
+            ? '🎙 Voice note'
+            : '📎 File'
+          : message.content?.slice(0, 120) || 'New message';
+
+      await pushToUsers(offlineRecipients, {
+        title: chat.isGroup ? `${senderName} in ${chat.name || 'Group'}` : senderName,
+        body: preview,
+        data: { type: 'message', chatId: chat._id.toString(), messageId: message._id.toString() },
+      });
+    } catch (err) {
+      require('../utils/logger').warn('push dispatch failed', err.message);
+    }
+  });
 });
 
 exports.markRead = asyncHandler(async (req, res) => {

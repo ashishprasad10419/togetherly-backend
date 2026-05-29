@@ -2,11 +2,38 @@ const User = require('../models/User');
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const Call = require('../models/Call');
+const audit = require('./audit.service');
 
 /**
- * Hard-delete a user and everything that references them — chats (1:1 deleted,
- * groups detached), messages, calls, contact references on other users.
- * Use sparingly; in production you'd typically prefer a soft-delete flag.
+ * Soft-delete a user: marks `deletedAt` so they vanish from queries and can no
+ * longer authenticate. References (chats, messages, calls) stay intact so
+ * conversation history is preserved for the OTHER participants.
+ */
+async function softDeleteUser(userId, { actor, ip } = {}) {
+  const user = await User.findOne({ _id: userId }).setOptions({ withDeleted: true });
+  if (!user) return { ok: false, reason: 'User not found' };
+  if (user.deletedAt) return { ok: false, reason: 'User already deleted' };
+
+  user.deletedAt = new Date();
+  user.refreshTokens = [];
+  user.pushTokens = [];
+  user.isOnline = false;
+  await user.save();
+
+  await audit.record({
+    actor: actor || null,
+    action: 'user.softDelete',
+    target: user._id.toString(),
+    metadata: { email: user.email },
+    ip,
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Hard-delete a user and everything referencing them. Use only when truly
+ * removing data (e.g. GDPR erasure request).
  */
 async function deleteUserCascade(userId) {
   const user = await User.findById(userId);
@@ -59,4 +86,4 @@ async function deleteUserCascade(userId) {
   };
 }
 
-module.exports = { deleteUserCascade };
+module.exports = { softDeleteUser, deleteUserCascade };
