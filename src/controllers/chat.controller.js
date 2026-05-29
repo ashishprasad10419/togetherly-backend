@@ -102,6 +102,14 @@ exports.removeParticipant = asyncHandler(async (req, res) => {
   res.json({ chat });
 });
 
+exports.setDisappearing = asyncHandler(async (req, res) => {
+  const chat = await Chat.findOne({ _id: req.params.id, participants: req.userId });
+  if (!chat) throw ApiError.notFound('Chat not found');
+  chat.disappearAfterSeconds = req.body.seconds || 0;
+  await chat.save();
+  res.json({ chat });
+});
+
 exports.togglePin = asyncHandler(async (req, res) => {
   const user = await User.findById(req.userId);
   const chatId = req.params.id;

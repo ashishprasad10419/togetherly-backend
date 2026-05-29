@@ -14,5 +14,6 @@ router.put('/:id', validate(v.updateGroupSchema), ctrl.updateGroup);
 router.post('/:id/participants', validate(v.addParticipantsSchema), ctrl.addParticipants);
 router.delete('/:id/participants/:userId', ctrl.removeParticipant);
 router.post('/:id/pin', ctrl.togglePin);
+router.post('/:id/disappearing', validate(require('../validators/message.validator').disappearingSchema), ctrl.setDisappearing);
 
 module.exports = router;

@@ -15,6 +15,8 @@ const chatSchema = new mongoose.Schema(
     lastMessageAt: { type: Date, default: Date.now, index: true },
     // Per-user unread counters: { userId: count }
     unread: { type: Map, of: Number, default: {} },
+    // Auto-expire messages after this many seconds. 0 = disabled.
+    disappearAfterSeconds: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

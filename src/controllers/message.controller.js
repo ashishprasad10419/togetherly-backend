@@ -33,6 +33,8 @@ exports.send = asyncHandler(async (req, res) => {
     attachments: req.body.attachments,
     replyTo: req.body.replyTo,
     forwardedFrom: req.body.forwardedFrom,
+    poll: req.body.poll,
+    location: req.body.location,
   });
 
   // Exclude sender — they get the canonical message via this HTTP response.
@@ -160,6 +162,49 @@ exports.react = asyncHandler(async (req, res) => {
   await message.save();
   emitToChat(message.chat, 'message:reaction', { messageId: message._id, reactions: message.reactions });
   res.json({ reactions: message.reactions });
+});
+
+exports.votePoll = asyncHandler(async (req, res) => {
+  const message = await Message.findById(req.params.id);
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.type !== 'poll' || !message.poll) throw ApiError.badRequest('Not a poll');
+  if (message.poll.closed) throw ApiError.badRequest('Poll is closed');
+  await ensureMembership(message.chat, req.userId);
+
+  const { optionId } = req.body;
+  const option = message.poll.options.id(optionId);
+  if (!option) throw ApiError.badRequest('Unknown option');
+
+  // Single-choice polls: clear any other votes by this user first.
+  if (!message.poll.multipleChoice) {
+    message.poll.options.forEach((opt) => {
+      opt.votes = opt.votes.filter((v) => v.toString() !== req.userId);
+    });
+  }
+  // Toggle the chosen option.
+  const idx = option.votes.findIndex((v) => v.toString() === req.userId);
+  if (idx >= 0) option.votes.splice(idx, 1);
+  else option.votes.push(req.userId);
+
+  await message.save();
+  emitToChat(message.chat, 'poll:updated', { messageId: message._id, poll: message.poll });
+  res.json({ poll: message.poll });
+});
+
+exports.markViewOnce = asyncHandler(async (req, res) => {
+  const message = await Message.findById(req.params.id);
+  if (!message) throw ApiError.notFound('Message not found');
+  await ensureMembership(message.chat, req.userId);
+
+  let changed = false;
+  for (const att of message.attachments) {
+    if (att.viewOnce && !att.viewedBy.some((u) => u.toString() === req.userId)) {
+      att.viewedBy.push(req.userId);
+      changed = true;
+    }
+  }
+  if (changed) await message.save();
+  res.json({ ok: true });
 });
 
 exports.search = asyncHandler(async (req, res) => {

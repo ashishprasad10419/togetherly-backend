@@ -11,19 +11,39 @@ async function ensureMembership(chatId, userId) {
   return chat;
 }
 
-async function persistMessage({ chatId, senderId, type, content, attachments, replyTo, forwardedFrom }) {
+async function persistMessage({
+  chatId,
+  senderId,
+  type,
+  content,
+  attachments,
+  replyTo,
+  forwardedFrom,
+  poll,
+  location,
+}) {
   const chat = await ensureMembership(chatId, senderId);
+
+  const expiresAt =
+    chat.disappearAfterSeconds && chat.disappearAfterSeconds > 0
+      ? new Date(Date.now() + chat.disappearAfterSeconds * 1000)
+      : undefined;
 
   const message = await Message.create({
     chat: chatId,
     sender: senderId,
-    type: type || (attachments?.length ? attachments[0].type : 'text'),
+    type: type || (poll ? 'poll' : location ? 'location' : attachments?.length ? attachments[0].type : 'text'),
     content: content || '',
     attachments: attachments || [],
     replyTo,
     forwardedFrom,
+    poll: poll && poll.question ? { question: poll.question, options: (poll.options || []).map((o) => ({ text: o.text || String(o) })) } : undefined,
+    location: location && typeof location.lat === 'number' && typeof location.lng === 'number'
+      ? { lat: location.lat, lng: location.lng, label: location.label }
+      : undefined,
     deliveredTo: [senderId],
     readBy: [senderId],
+    expiresAt,
   });
 
   // bump unread per participant (excluding sender)

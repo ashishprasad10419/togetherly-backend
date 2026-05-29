@@ -7,5 +7,6 @@ router.use('/messages', require('./message.routes'));
 router.use('/uploads', require('./upload.routes'));
 router.use('/calls', require('./call.routes'));
 router.use('/admin', require('./admin.routes'));
+router.use('/stories', require('./story.routes'));
 
 module.exports = router;
