@@ -30,7 +30,18 @@ exports.history = asyncHandler(async (req, res) => {
     .limit(100)
     .populate('caller', 'name avatar')
     .populate('participants', 'name avatar');
-  res.json({ calls });
+
+  // Skip records whose caller has been deleted, and prune any null participants
+  // (defensive against stale references). The client can safely render the rest.
+  const safe = calls
+    .filter((c) => !!c.caller)
+    .map((c) => {
+      const obj = c.toObject();
+      obj.participants = (obj.participants || []).filter(Boolean);
+      return obj;
+    });
+
+  res.json({ calls: safe });
 });
 
 exports.log = asyncHandler(async (req, res) => {
