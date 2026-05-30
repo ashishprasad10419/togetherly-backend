@@ -51,6 +51,14 @@ function initSocket(httpServer) {
 
       await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
       socket.broadcast.emit('presence:online', { userId });
+
+      // Send the connecting client a snapshot of who is currently online so it
+      // doesn't have to wait for deltas. Limited to contacts to avoid leaking
+      // strangers' presence.
+      const me = await User.findById(userId).select('contacts');
+      const ids = (me?.contacts || []).slice(0, 500);
+      const onlines = await User.find({ _id: { $in: ids }, isOnline: true }).select('_id');
+      socket.emit('presence:snapshot', { userIds: onlines.map((u) => u._id.toString()) });
     } catch (err) {
       logger.error('socket connect setup failed', err);
     }
@@ -62,8 +70,13 @@ function initSocket(httpServer) {
     socket.on('disconnect', async () => {
       logger.info(`[socket] disconnected user=${userId}`);
       try {
-        await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
-        io.emit('presence:offline', { userId, lastSeen: new Date() });
+        // Only mark offline if NO other sockets remain for this user.
+        const room = io.sockets.adapter.rooms.get(userRoom(userId));
+        const remaining = room ? room.size : 0;
+        if (remaining === 0) {
+          await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen: new Date() });
+          io.emit('presence:offline', { userId, lastSeen: new Date() });
+        }
       } catch (err) {
         logger.error('socket disconnect cleanup failed', err);
       }
