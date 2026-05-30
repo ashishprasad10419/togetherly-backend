@@ -53,15 +53,23 @@ const messageSchema = new mongoose.Schema(
     isDeletedForEveryone: { type: Boolean, default: false },
     edited: { type: Boolean, default: false },
     poll: {
-      question: String,
-      options: [pollOptionSchema],
-      multipleChoice: { type: Boolean, default: false },
-      closed: { type: Boolean, default: false },
+      type: new mongoose.Schema(
+        {
+          question: String,
+          options: [pollOptionSchema],
+          multipleChoice: { type: Boolean, default: false },
+          closed: { type: Boolean, default: false },
+        },
+        { _id: false }
+      ),
+      default: undefined,
     },
     location: {
-      lat: Number,
-      lng: Number,
-      label: String, // optional place name
+      type: new mongoose.Schema(
+        { lat: Number, lng: Number, label: String },
+        { _id: false }
+      ),
+      default: undefined,
     },
     expiresAt: { type: Date, index: true }, // for disappearing messages
   },
