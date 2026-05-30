@@ -83,3 +83,17 @@ exports.unregisterPushToken = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.userId, { $pull: { pushTokens: req.body.token } });
   res.json({ ok: true });
 });
+
+exports.registerPublicKey = asyncHandler(async (req, res) => {
+  const { publicKey } = req.body;
+  if (!publicKey || typeof publicKey !== 'string') throw ApiError.badRequest('publicKey required');
+  if (publicKey.length > 256) throw ApiError.badRequest('publicKey too long');
+  await User.findByIdAndUpdate(req.userId, { publicKey });
+  res.json({ ok: true });
+});
+
+exports.getPublicKey = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.params.id).select('publicKey');
+  if (!user) throw ApiError.notFound('User not found');
+  res.json({ publicKey: user.publicKey || null });
+});

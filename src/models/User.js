@@ -31,6 +31,8 @@ const userSchema = new mongoose.Schema(
     pushTokens: [{ type: String }],
     refreshTokens: { type: [String], select: false, default: [] },
     deletedAt: { type: Date, default: null, index: true },
+    // Curve25519 public key (base64). Private key never leaves the device.
+    publicKey: { type: String, default: null },
   },
   { timestamps: true }
 );

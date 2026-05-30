@@ -35,6 +35,7 @@ exports.send = asyncHandler(async (req, res) => {
     forwardedFrom: req.body.forwardedFrom,
     poll: req.body.poll,
     location: req.body.location,
+    encrypted: req.body.encrypted,
   });
 
   // Exclude sender — they get the canonical message via this HTTP response.
@@ -56,7 +57,9 @@ exports.send = asyncHandler(async (req, res) => {
         (await User.findById(req.userId).select('name'))?.name ||
         'Someone';
       const preview =
-        message.attachments?.length
+        message.encrypted
+          ? '🔒 Encrypted message'
+          : message.attachments?.length
           ? message.attachments[0].type === 'image'
             ? '📷 Photo'
             : message.attachments[0].type === 'video'

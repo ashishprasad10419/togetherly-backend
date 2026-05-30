@@ -20,6 +20,9 @@ router.delete('/block/:id', ctrl.unblock);
 router.post('/push-tokens', validate(v.pushTokenSchema), ctrl.registerPushToken);
 router.delete('/push-tokens', validate(v.pushTokenSchema), ctrl.unregisterPushToken);
 
+router.post('/public-key', ctrl.registerPublicKey);
+router.get('/:id/public-key', ctrl.getPublicKey);
+
 router.get('/:id', ctrl.getById);
 
 module.exports = router;

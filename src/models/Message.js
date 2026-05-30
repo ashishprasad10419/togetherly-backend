@@ -52,6 +52,9 @@ const messageSchema = new mongoose.Schema(
     deletedFor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     isDeletedForEveryone: { type: Boolean, default: false },
     edited: { type: Boolean, default: false },
+    // When true, `content` holds base64 ciphertext (AES-256-GCM) instead of
+    // plaintext. The server cannot read it; only chat participants can decrypt.
+    encrypted: { type: Boolean, default: false },
     poll: {
       type: new mongoose.Schema(
         {

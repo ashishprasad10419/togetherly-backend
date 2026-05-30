@@ -34,12 +34,13 @@ const location = Joi.object({
 exports.sendMessageSchema = Joi.object({
   chatId: objectId.required(),
   type: Joi.string().valid('text', 'image', 'video', 'audio', 'file', 'poll', 'location').default('text'),
-  content: Joi.string().allow('').max(4096),
+  content: Joi.string().allow('').max(8192), // allow more for base64 ciphertext
   attachments: Joi.array().items(attachment).default([]),
   replyTo: objectId.optional(),
   forwardedFrom: objectId.optional(),
   poll: poll.optional(),
   location: location.optional(),
+  encrypted: Joi.boolean().optional(),
 }).or('content', 'attachments', 'poll', 'location');
 
 exports.votePollSchema = Joi.object({

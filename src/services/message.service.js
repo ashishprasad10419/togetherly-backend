@@ -21,6 +21,7 @@ async function persistMessage({
   forwardedFrom,
   poll,
   location,
+  encrypted,
 }) {
   const chat = await ensureMembership(chatId, senderId);
 
@@ -44,6 +45,7 @@ async function persistMessage({
     deliveredTo: [senderId],
     readBy: [senderId],
     expiresAt,
+    encrypted: !!encrypted,
   });
 
   // bump unread per participant (excluding sender)
