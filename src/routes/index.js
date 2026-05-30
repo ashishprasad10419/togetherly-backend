@@ -8,5 +8,6 @@ router.use('/uploads', require('./upload.routes'));
 router.use('/calls', require('./call.routes'));
 router.use('/admin', require('./admin.routes'));
 router.use('/stories', require('./story.routes'));
+router.use('/scheduled', require('./scheduled.routes'));
 
 module.exports = router;

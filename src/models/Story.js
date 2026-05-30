@@ -15,6 +15,13 @@ const storySchema = new mongoose.Schema(
       duration: Number,
     },
     viewers: [{ user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, viewedAt: Date }],
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        emoji: { type: String },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     expiresAt: { type: Date, required: true, index: true },
   },
   { timestamps: true }

@@ -2,6 +2,7 @@ const Story = require('../models/Story');
 const User = require('../models/User');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
+const { emitToChat } = require('../sockets/emitters');
 
 const STORY_TTL_HOURS = 24;
 
@@ -89,6 +90,58 @@ exports.remove = asyncHandler(async (req, res) => {
   if (story.author.toString() !== req.userId) throw ApiError.forbidden('Not your story');
   await story.deleteOne();
   res.json({ ok: true });
+});
+
+/** POST /api/v1/stories/:id/react — toggle an emoji reaction on a story */
+exports.react = asyncHandler(async (req, res) => {
+  const story = await Story.findById(req.params.id);
+  if (!story) throw ApiError.notFound('Story not found');
+  const { emoji } = req.body;
+  if (!emoji) throw ApiError.badRequest('emoji required');
+
+  const idx = story.reactions.findIndex((r) => r.user.toString() === req.userId);
+  if (idx >= 0) {
+    if (story.reactions[idx].emoji === emoji) story.reactions.splice(idx, 1);
+    else story.reactions[idx].emoji = emoji;
+  } else {
+    story.reactions.push({ user: req.userId, emoji, createdAt: new Date() });
+  }
+  await story.save();
+  res.json({ reactions: story.reactions });
+});
+
+/** POST /api/v1/stories/:id/reply — text reply, delivered as a DM */
+exports.reply = asyncHandler(async (req, res) => {
+  const story = await Story.findById(req.params.id).populate('author', '_id');
+  if (!story) throw ApiError.notFound('Story not found');
+  const { content } = req.body;
+  if (!content?.trim()) throw ApiError.badRequest('content required');
+  if (story.author._id.toString() === req.userId) throw ApiError.badRequest("Can't reply to your own story");
+
+  // Open or reuse the 1:1 chat with the author, then send a text message there.
+  const Chat = require('../models/Chat');
+  let chat = await Chat.findOne({
+    isGroup: false,
+    participants: { $all: [req.userId, story.author._id], $size: 2 },
+  });
+  if (!chat) {
+    chat = await Chat.create({
+      isGroup: false,
+      participants: [req.userId, story.author._id],
+      createdBy: req.userId,
+    });
+  }
+
+  const { persistMessage } = require('../services/message.service');
+  const message = await persistMessage({
+    chatId: chat._id,
+    senderId: req.userId,
+    type: 'text',
+    content: `↩️ Replied to your story: ${content.trim()}`,
+  });
+
+  emitToChat(chat._id, 'message:new', { message }, req.userId);
+  res.json({ ok: true, chatId: chat._id });
 });
 
 /** GET /api/v1/stories/:id/viewers — author can see who viewed */

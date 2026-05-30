@@ -17,5 +17,6 @@ router.post('/forward', validate(v.forwardSchema), ctrl.forward);
 router.post('/:id/react', validate(v.reactSchema), ctrl.react);
 router.post('/:id/vote', validate(v.votePollSchema), ctrl.votePoll);
 router.post('/:id/view-once', ctrl.markViewOnce);
+router.patch('/:id', validate(v.editSchema), ctrl.edit);
 
 module.exports = router;

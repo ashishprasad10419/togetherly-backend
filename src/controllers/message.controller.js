@@ -97,6 +97,30 @@ exports.markRead = asyncHandler(async (req, res) => {
   res.json({ ok: true });
 });
 
+exports.edit = asyncHandler(async (req, res) => {
+  const message = await Message.findById(req.params.id);
+  if (!message) throw ApiError.notFound('Message not found');
+  if (message.sender.toString() !== req.userId) throw ApiError.forbidden('Only the sender can edit');
+  if (message.isDeletedForEveryone) throw ApiError.badRequest('Cannot edit a deleted message');
+  if (message.type !== 'text') throw ApiError.badRequest('Only text messages can be edited');
+
+  const { content } = req.body;
+  if (!content || !content.trim()) throw ApiError.badRequest('Content required');
+
+  // Refuse to edit after 15 minutes — common UX convention to prevent gaslighting.
+  const FIFTEEN_MIN = 15 * 60 * 1000;
+  if (Date.now() - new Date(message.createdAt).getTime() > FIFTEEN_MIN) {
+    throw ApiError.badRequest('Edit window has closed (15 min)');
+  }
+
+  message.content = content.trim();
+  message.edited = true;
+  await message.save();
+
+  emitToChat(message.chat, 'message:edited', { messageId: message._id, content: message.content, edited: true });
+  res.json({ message });
+});
+
 exports.deleteForMe = asyncHandler(async (req, res) => {
   const message = await Message.findById(req.params.id);
   if (!message) throw ApiError.notFound('Message not found');

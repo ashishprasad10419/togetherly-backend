@@ -3,6 +3,7 @@ const app = require('./app');
 const env = require('./config/env');
 const { connectDB } = require('./config/db');
 const { initSocket } = require('./sockets');
+const { startScheduler } = require('./services/scheduler.service');
 const logger = require('./utils/logger');
 
 async function start() {
@@ -13,6 +14,7 @@ async function start() {
 
     server.listen(env.port, () => {
       logger.info(`Togetherly API running on :${env.port} (${env.nodeEnv})`);
+      startScheduler();
     });
 
     const shutdown = (signal) => {

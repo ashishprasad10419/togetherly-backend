@@ -7,6 +7,8 @@ router.use(authenticate);
 router.get('/', ctrl.feed);
 router.post('/', ctrl.create);
 router.post('/:id/view', ctrl.markViewed);
+router.post('/:id/react', ctrl.react);
+router.post('/:id/reply', ctrl.reply);
 router.get('/:id/viewers', ctrl.viewers);
 router.delete('/:id', ctrl.remove);
 

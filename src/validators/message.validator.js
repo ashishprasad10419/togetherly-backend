@@ -58,3 +58,13 @@ exports.forwardSchema = Joi.object({
 exports.reactSchema = Joi.object({
   emoji: Joi.string().min(1).max(8).required(),
 });
+
+exports.editSchema = Joi.object({
+  content: Joi.string().min(1).max(4096).required(),
+});
+
+exports.scheduleSchema = Joi.object({
+  chatId: objectId.required(),
+  content: Joi.string().min(1).max(4096).required(),
+  sendAt: Joi.date().iso().greater('now').required(),
+});
