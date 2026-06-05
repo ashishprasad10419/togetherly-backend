@@ -40,4 +40,12 @@ module.exports = function registerCallHandlers(io, socket) {
   socket.on('call:end', ({ toUserId }) => {
     io.to(`user:${toUserId}`).emit('call:ended', { fromUserId: userId });
   });
+
+  // Mid-call SDP renegotiation (e.g. when switching from camera to screen share).
+  socket.on('call:renegotiate', ({ toUserId, sdp }) => {
+    io.to(`user:${toUserId}`).emit('call:renegotiate', { fromUserId: userId, sdp });
+  });
+  socket.on('call:renegotiateAnswer', ({ toUserId, sdp }) => {
+    io.to(`user:${toUserId}`).emit('call:renegotiateAnswer', { fromUserId: userId, sdp });
+  });
 };

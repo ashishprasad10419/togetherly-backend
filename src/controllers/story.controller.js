@@ -26,10 +26,28 @@ exports.create = asyncHandler(async (req, res) => {
   res.status(201).json({ story: populated });
 });
 
-/** GET /api/v1/stories — feed visible to current user (self + contacts) */
+/** GET /api/v1/stories — feed visible to current user (self + contacts + people they DM with).
+ *  We also include anyone the user has had a 1:1 chat with, so stories show up
+ *  even if the user never explicitly tapped "add contact".
+ */
 exports.feed = asyncHandler(async (req, res) => {
-  const me = await User.findById(req.userId).select('contacts');
-  const visibleAuthorIds = [req.userId, ...(me.contacts || [])];
+  const Chat = require('../models/Chat');
+  const [me, dmChats] = await Promise.all([
+    User.findById(req.userId).select('contacts'),
+    Chat.find({ isGroup: false, participants: req.userId }).select('participants'),
+  ]);
+  const dmPeerIds = new Set();
+  for (const c of dmChats) {
+    for (const p of c.participants) {
+      const id = p.toString();
+      if (id !== req.userId) dmPeerIds.add(id);
+    }
+  }
+  const visibleAuthorIds = [
+    req.userId,
+    ...(me?.contacts || []).map((c) => c.toString()),
+    ...dmPeerIds,
+  ];
 
   // Group by author so the client renders a "ring" per person, in WhatsApp/IG style.
   const stories = await Story.find({
